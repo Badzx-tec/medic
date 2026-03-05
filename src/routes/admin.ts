@@ -1,4 +1,5 @@
 import { FastifyInstance } from 'fastify';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { pageDraftSchema, hasForbiddenClaims, doctorSchema, clinicSchema } from '../schemas/page.js';
 import { PLAN_LIMITS } from '../services/plan.js';
@@ -46,7 +47,9 @@ export async function adminRoutes(app: FastifyInstance) {
       if (!ok.success) return reply.status(400).send({ message: 'Campos CFM de clínica inválidos' });
     }
 
-    const version = await prisma.pageVersion.create({ data: { pageId: page.id, versionJson: page.draftJson, publishedAt: new Date() } });
+    const version = await prisma.pageVersion.create({
+      data: { pageId: page.id, versionJson: page.draftJson as Prisma.InputJsonValue, publishedAt: new Date() }
+    });
     return prisma.page.update({ where: { id: page.id }, data: { status: 'published', publishedVersionId: version.id } });
   });
 }

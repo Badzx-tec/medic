@@ -22,8 +22,8 @@ await app.register(authRoutes);
 await app.register(adminRoutes);
 await app.register(publicRoutes);
 
-app.get('/admin*', async (_req, reply) => {
-  reply.sendFile('index.html');
+app.get('/admin', async (_req, reply) => {
+  reply.redirect('/admin/');
 });
 
 app.listen({ port: env.PORT, host: '0.0.0.0' });
