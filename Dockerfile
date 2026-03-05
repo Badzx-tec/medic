@@ -4,9 +4,10 @@ COPY package.json package-lock.json* ./
 RUN npm ci --include=dev
 
 FROM deps AS build
+ENV NODE_OPTIONS=--max_old_space_size=256
 COPY . .
-RUN npm run build
 RUN npx prisma generate
+RUN npm run build
 RUN npm prune --omit=dev
 
 FROM node:20-alpine AS runtime
