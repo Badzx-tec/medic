@@ -1,12 +1,13 @@
 FROM node:20-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json* ./
-RUN npm install
+RUN npm ci --include=dev
 
 FROM deps AS build
 COPY . .
 RUN npm run build
 RUN npx prisma generate
+RUN npm prune --omit=dev
 
 FROM node:20-alpine AS runtime
 WORKDIR /app
