@@ -1,0 +1,92 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum PageType {
+  doctor
+  clinic
+}
+
+enum PageStatus {
+  draft
+  published
+  expired
+}
+
+enum Plan {
+  TRIAL
+  BASIC
+  PRO
+}
+
+enum SubscriptionStatus {
+  active
+  expired
+}
+
+model Account {
+  id            String         @id @default(cuid())
+  name          String
+  email         String         @unique
+  createdAt     DateTime       @default(now())
+  pages         Page[]
+  subscription  Subscription?
+}
+
+model Page {
+  id                   String         @id @default(cuid())
+  accountId            String
+  type                 PageType
+  slug                 String         @unique
+  customDomain         String?        @unique
+  themePreset          String         @default("clinic-trust")
+  status               PageStatus     @default(draft)
+  draftJson            Json
+  publishedVersionId   String?
+  publishedVersion     PageVersion?   @relation("PublishedVersion", fields: [publishedVersionId], references: [id])
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+  account              Account        @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  versions             PageVersion[]  @relation("PageVersions")
+}
+
+model PageVersion {
+  id          String   @id @default(cuid())
+  pageId      String
+  versionJson Json
+  createdAt   DateTime @default(now())
+  publishedAt DateTime?
+  page        Page     @relation("PageVersions", fields: [pageId], references: [id], onDelete: Cascade)
+  publishedIn Page[]   @relation("PublishedVersion")
+}
+
+model Subscription {
+  id        String             @id @default(cuid())
+  accountId String             @unique
+  plan      Plan
+  paidUntil DateTime
+  status    SubscriptionStatus @default(active)
+  account   Account            @relation(fields: [accountId], references: [id], onDelete: Cascade)
+}
+
+model Lead {
+  id        String   @id @default(cuid())
+  pageId    String
+  name      String
+  phone     String
+  message   String
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actor     String
+  action    String
+  data      Json?
+  createdAt DateTime @default(now())
+}
