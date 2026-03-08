@@ -8,6 +8,16 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
       ...init?.headers
     }
   });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+  const contentType = res.headers.get('content-type') ?? '';
+  const isJson = contentType.includes('application/json');
+  const payload = isJson ? await res.json() : await res.text();
+
+  if (!res.ok) {
+    if (payload && typeof payload === 'object' && 'message' in payload && typeof payload.message === 'string') {
+      throw new Error(payload.message);
+    }
+    throw new Error(typeof payload === 'string' ? payload : 'Falha na requisição.');
+  }
+
+  return payload as T;
 }

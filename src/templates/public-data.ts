@@ -25,9 +25,13 @@ export type PublicPageViewModel = {
   accentLine: string;
   accentStrong: string;
   initials: string;
-  portraitUrl: string | null;
+  heroImageUrl: string;
+  logoImageUrl: string | null;
+  portraitUrl: string;
+  mapPreviewUrl: string;
   nav: NavItem[];
   services: CardItem[];
+  benefitCards: CardItem[];
   careSteps: StepItem[];
   faq: FaqItem[];
   team: TeamMember[];
@@ -88,8 +92,29 @@ function compact<T>(items: Array<T | null | undefined | false>) {
   return items.filter(Boolean) as T[];
 }
 
+function getBaseUrl(pageUrl: string) {
+  try {
+    return new URL(pageUrl).origin;
+  } catch {
+    return pageUrl;
+  }
+}
+
+function resolveUrl(value: string | null | undefined, baseUrl: string) {
+  if (!value) return null;
+  try {
+    return new URL(value, baseUrl).toString();
+  } catch {
+    return value;
+  }
+}
+
 function safeJsonLd(data: unknown) {
   return JSON.stringify(data).replace(/</g, '\\u003c');
+}
+
+function svgToDataUri(svg: string) {
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 }
 
 function parseHex(hex: string) {
@@ -124,6 +149,103 @@ function escapeXml(value: string) {
     .replace(/'/g, '&apos;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
+}
+
+function buildPortraitPlaceholder(name: string, specialty: string, accentColor: string) {
+  const initials = getInitials(name);
+  const svg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 1200" role="img" aria-label="${escapeXml(name)}">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="${escapeXml(alpha(accentColor, 0.22))}"/>
+      <stop offset="100%" stop-color="#0f2237"/>
+    </linearGradient>
+    <linearGradient id="silhouette" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#dce7ef" stop-opacity="0.28"/>
+    </linearGradient>
+  </defs>
+  <rect width="960" height="1200" rx="64" fill="url(#bg)"/>
+  <circle cx="740" cy="180" r="210" fill="${escapeXml(alpha(accentColor, 0.18))}"/>
+  <circle cx="240" cy="1040" r="220" fill="${escapeXml(alpha(accentColor, 0.14))}"/>
+  <path d="M478 270c117 0 212 95 212 212 0 77-41 145-103 182 117 42 201 154 201 285v83H172v-83c0-131 84-243 201-285-62-37-103-105-103-182 0-117 95-212 208-212z" fill="url(#silhouette)"/>
+  <rect x="92" y="88" width="216" height="42" rx="21" fill="rgba(255,255,255,0.14)"/>
+  <text x="120" y="116" font-family="Manrope, Arial, sans-serif" font-size="22" font-weight="700" fill="#f8fbfc">${escapeXml(specialty || 'Apresentação institucional')}</text>
+  <text x="92" y="1120" font-family="Fraunces, Georgia, serif" font-size="180" font-weight="700" fill="rgba(255,255,255,0.12)">${escapeXml(initials)}</text>
+</svg>`;
+  return svgToDataUri(svg);
+}
+
+function buildHeroBackdropPlaceholder(name: string, accentColor: string, location: string) {
+  const svg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1080" role="img" aria-label="${escapeXml(name)}">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbfdff"/>
+      <stop offset="100%" stop-color="#eef4f7"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="${escapeXml(accentColor)}"/>
+      <stop offset="100%" stop-color="#102033"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="1080" fill="url(#bg)"/>
+  <circle cx="1320" cy="180" r="260" fill="${escapeXml(alpha(accentColor, 0.12))}"/>
+  <circle cx="250" cy="880" r="260" fill="${escapeXml(alpha(accentColor, 0.08))}"/>
+  <path d="M980 220c146 0 264 118 264 264s-118 264-264 264H620c-146 0-264-118-264-264s118-264 264-264h360z" fill="url(#accent)" opacity="0.12"/>
+  <rect x="104" y="110" width="264" height="54" rx="27" fill="rgba(16,32,51,0.06)"/>
+  <text x="140" y="146" font-family="Manrope, Arial, sans-serif" font-size="28" font-weight="700" fill="#102033">${escapeXml(location || 'Consulta particular')}</text>
+  <text x="104" y="404" font-family="Fraunces, Georgia, serif" font-size="118" font-weight="700" fill="#102033">${escapeXml(name)}</text>
+  <text x="104" y="486" font-family="Manrope, Arial, sans-serif" font-size="36" fill="#526476">Experiência institucional premium para atendimento médico particular.</text>
+  <rect x="104" y="610" width="580" height="220" rx="36" fill="#ffffff" stroke="#dbe3ea"/>
+  <rect x="140" y="650" width="168" height="18" rx="9" fill="${escapeXml(alpha(accentColor, 0.16))}"/>
+  <rect x="140" y="708" width="480" height="16" rx="8" fill="#dfe7ee"/>
+  <rect x="140" y="744" width="410" height="16" rx="8" fill="#e5edf3"/>
+  <rect x="140" y="780" width="340" height="16" rx="8" fill="#edf3f7"/>
+</svg>`;
+  return svgToDataUri(svg);
+}
+
+function buildMapPreviewPlaceholder(address: string, accentColor: string) {
+  const svg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" role="img" aria-label="Mapa ilustrativo">
+  <rect width="1200" height="720" rx="36" fill="#eef4f7"/>
+  <g stroke="#d7e0e8" stroke-width="20">
+    <path d="M120 110H1080"/>
+    <path d="M120 250H1080"/>
+    <path d="M120 390H1080"/>
+    <path d="M120 530H1080"/>
+    <path d="M240 40V680"/>
+    <path d="M520 40V680"/>
+    <path d="M800 40V680"/>
+    <path d="M1040 40V680"/>
+  </g>
+  <path d="M666 276c0 73-86 184-86 184s-86-111-86-184c0-48 38-86 86-86s86 38 86 86z" fill="${escapeXml(accentColor)}"/>
+  <circle cx="580" cy="276" r="34" fill="#ffffff"/>
+  <rect x="88" y="540" width="1024" height="116" rx="24" fill="#ffffff" stroke="#dbe3ea"/>
+  <text x="132" y="596" font-family="Manrope, Arial, sans-serif" font-size="28" font-weight="700" fill="#102033">${escapeXml(address || 'Endereço sob confirmação no contato inicial')}</text>
+  <text x="132" y="634" font-family="Manrope, Arial, sans-serif" font-size="22" fill="#526476">Localização ilustrativa para reforço visual do contato e da rota.</text>
+</svg>`;
+  return svgToDataUri(svg);
+}
+
+function getBenefitCards(type: PublicPageType, highlights: string[], approach: string) {
+  const defaults = type === 'doctor'
+    ? [
+        { title: highlights[0] ?? 'Escuta clínica qualificada', description: 'Consulta construída para compreensão do contexto, orientação objetiva e definição de conduta com calma.' },
+        { title: highlights[1] ?? 'Condução responsável do atendimento', description: 'Comunicação clara, explicação dos próximos passos e experiência de consultório mais previsível.' },
+        { title: highlights[2] ?? 'Acompanhamento organizado', description: 'Jornada pensada para reduzir ruído operacional e facilitar retorno, contato e continuidade.' }
+      ]
+    : [
+        { title: highlights[0] ?? 'Jornada assistencial coordenada', description: 'Estrutura institucional que reduz atrito entre primeiro contato, consulta e continuidade do cuidado.' },
+        { title: highlights[1] ?? 'Equipe com leitura integrada', description: 'Fluxo pensado para dar mais clareza ao paciente e mais consistência à experiência clínica.' },
+        { title: highlights[2] ?? 'Operação particular mais acolhedora', description: 'Organização, comunicação e presença de marca alinhadas a uma percepção premium de atendimento.' }
+      ];
+
+  return defaults.map((item, index) => ({
+    title: item.title,
+    description: index === 0 && approach ? approach : item.description
+  }));
 }
 
 function formatDoctorRegistration(draft: any) {
@@ -244,6 +366,7 @@ function getPageIdentity(type: PublicPageType, draft: any): IdentityBlock {
 
 export function buildPublicPageViewModel(type: PublicPageType, draft: any, options: PublicRenderOptions): PublicPageViewModel {
   const identity = getPageIdentity(type, draft);
+  const baseUrl = getBaseUrl(options.pageUrl);
   const accentColor = draft?.branding?.accentColor ?? (type === 'doctor' ? '#0E6A6C' : '#2953A6');
   const whatsappLink = buildWhatsappLink(draft.whatsapp.phone, draft.whatsapp.message);
   const displayPhone = draft?.contact?.phoneDisplay ?? `+${draft.whatsapp.phone}`;
@@ -283,12 +406,23 @@ export function buildPublicPageViewModel(type: PublicPageType, draft: any, optio
     { href: '#inicio', label: 'Início' },
     { href: '#sobre', label: 'Sobre' },
     services.length ? { href: '#especialidades', label: type === 'doctor' ? 'Atendimento' : 'Estrutura' } : null,
+    aboutHighlights.length ? { href: '#diferenciais', label: 'Diferenciais' } : null,
     careSteps.length ? { href: '#jornada', label: 'Jornada' } : null,
     { href: '#contato', label: 'Contato' },
     faq.length ? { href: '#duvidas', label: 'Dúvidas' } : null
   ]);
-  const portraitUrl = draft?.branding?.portraitUrl ?? draft?.professional?.photoUrl ?? draft?.branding?.heroImageUrl ?? draft?.clinic?.heroImageUrl ?? null;
+  const heroImageUrl = resolveUrl(draft?.branding?.heroImageUrl ?? draft?.clinic?.heroImageUrl ?? null, baseUrl)
+    ?? buildHeroBackdropPlaceholder(identity.entityName, accentColor, locationLine || draft?.location?.address || identity.eyebrow);
+  const logoImageUrl = resolveUrl(draft?.clinic?.logoUrl ?? null, baseUrl);
+  const portraitUrl = resolveUrl(
+    draft?.branding?.portraitUrl ?? draft?.professional?.photoUrl ?? draft?.branding?.heroImageUrl ?? draft?.clinic?.heroImageUrl ?? null,
+    baseUrl
+  ) ?? buildPortraitPlaceholder(identity.entityName, identity.specialtyLabel, accentColor);
+  const mapPreviewUrl = buildMapPreviewPlaceholder(draft?.location?.address ?? '', accentColor);
+  const socialImageUrl = resolveUrl(draft?.branding?.socialImageUrl ?? options.socialImageUrl, baseUrl) ?? options.socialImageUrl;
+  const faviconUrl = resolveUrl(options.faviconUrl, baseUrl) ?? options.faviconUrl;
   const socialLinks = draft?.contact?.sameAs?.length ? draft.contact.sameAs : compact([draft?.contact?.instagramUrl]);
+  const benefitCards = getBenefitCards(type, aboutHighlights, draft?.about?.approach ?? '');
   const structuredData = compact<unknown>([
     {
       '@context': 'https://schema.org',
@@ -296,8 +430,8 @@ export function buildPublicPageViewModel(type: PublicPageType, draft: any, optio
       name: identity.entityName,
       description: draft?.seo?.description,
       url: options.canonicalUrl,
-      image: draft?.branding?.socialImageUrl ?? options.socialImageUrl,
-      logo: options.faviconUrl,
+      image: socialImageUrl,
+      logo: faviconUrl,
       telephone: displayPhone,
       medicalSpecialty: type === 'doctor' ? draft?.professional?.specialty : undefined,
       address: buildPostalAddress(draft),
@@ -331,14 +465,18 @@ export function buildPublicPageViewModel(type: PublicPageType, draft: any, optio
   return {
     type,
     accentColor,
-    accentSoft: alpha(accentColor, 0.12),
-    accentLine: alpha(accentColor, 0.18),
-    accentStrong: alpha(accentColor, 0.22),
-    initials: getInitials(identity.entityName),
-    portraitUrl,
-    nav,
-    services,
-    careSteps,
+     accentSoft: alpha(accentColor, 0.12),
+     accentLine: alpha(accentColor, 0.18),
+     accentStrong: alpha(accentColor, 0.22),
+     initials: getInitials(identity.entityName),
+     heroImageUrl,
+     logoImageUrl,
+     portraitUrl,
+     mapPreviewUrl,
+     nav,
+     services,
+     benefitCards,
+     careSteps,
     faq,
     team,
     hours,
@@ -373,8 +511,8 @@ export function buildPublicPageViewModel(type: PublicPageType, draft: any, optio
     locationSummary: draft?.location?.summary ?? 'Localização compartilhada com facilidade de acesso e orientação por mapa.',
     email: draft?.contact?.email ?? null,
     structuredData: safeJsonLd(structuredData),
-    faviconUrl: options.faviconUrl,
-    socialImageUrl: draft?.branding?.socialImageUrl ?? options.socialImageUrl,
+     faviconUrl,
+     socialImageUrl,
     canonicalUrl: options.canonicalUrl,
     pageUrl: options.pageUrl,
     host: options.host,

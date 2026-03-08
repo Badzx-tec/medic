@@ -3,6 +3,7 @@ import jwt from '@fastify/jwt';
 import cors from '@fastify/cors';
 import rateLimit from '@fastify/rate-limit';
 import fastifyStatic from '@fastify/static';
+import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { env } from './lib/env.js';
@@ -10,13 +11,26 @@ import { authRoutes } from './routes/auth.js';
 import { adminRoutes } from './routes/admin.js';
 import { publicRoutes } from './routes/public.js';
 
-const app = Fastify({ logger: { level: 'info' }, trustProxy: true });
+const app = Fastify({
+  logger: { level: 'info' },
+  trustProxy: true,
+  bodyLimit: 5 * 1024 * 1024
+});
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const uploadRoot = path.resolve(__dirname, '../storage/uploads');
+
+await fs.mkdir(uploadRoot, { recursive: true });
 
 await app.register(cors, { origin: true });
 await app.register(rateLimit, { max: 100, timeWindow: '1 minute' });
 await app.register(jwt, { secret: env.JWT_SECRET });
 await app.register(fastifyStatic, { root: path.resolve(__dirname, '../dist/admin'), prefix: '/admin/' });
+await app.register(fastifyStatic, {
+  root: uploadRoot,
+  prefix: '/uploads/',
+  decorateReply: false,
+  index: false
+});
 
 await app.register(authRoutes);
 await app.register(adminRoutes);

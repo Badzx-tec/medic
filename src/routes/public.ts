@@ -9,6 +9,15 @@ import {
 } from '../templates/public.js';
 import { buildWhatsappLink } from '../services/whatsapp.js';
 
+function escapeXml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
 function getRequestHost(req: FastifyRequest) {
   const forwardedHost = req.headers['x-forwarded-host'];
   const value = Array.isArray(forwardedHost) ? forwardedHost[0] : forwardedHost;
@@ -33,6 +42,17 @@ function getCanonicalUrl(req: FastifyRequest, fallbackPath: string, draft?: any)
   return `${getRequestOrigin(req)}${fallbackPath}`;
 }
 
+function getPagePublicUrl(req: FastifyRequest, page: { slug: string; customDomain?: string | null; draftJson: any }) {
+  const custom = page.draftJson?.seo?.canonicalPath;
+  if (typeof custom === 'string' && custom.length > 0) {
+    if (custom.startsWith('http')) return custom;
+    if (page.customDomain) return `https://${page.customDomain}${custom}`;
+    return `${getRequestOrigin(req)}${custom}`;
+  }
+  if (page.customDomain) return `https://${page.customDomain}/`;
+  return `${getRequestOrigin(req)}/p/${page.slug}`;
+}
+
 async function resolvePage(slug?: string, host?: string) {
   if (slug) return prisma.page.findUnique({ where: { slug } });
   if (!host) return null;
@@ -46,6 +66,30 @@ function replyWithNotFound(reply: any) {
 
 export async function publicRoutes(app: FastifyInstance) {
   app.get('/health', async () => ({ ok: true }));
+
+  app.get('/robots.txt', async (req, reply) =>
+    reply.type('text/plain').send(`User-agent: *\nAllow: /\nSitemap: ${getRequestOrigin(req)}/sitemap.xml\n`)
+  );
+
+  app.get('/sitemap.xml', async (req, reply) => {
+    const host = getRequestHost(req).split(':')[0];
+    const pages = await prisma.page.findMany({
+      where: { status: 'published' },
+      orderBy: { updatedAt: 'desc' }
+    });
+
+    const scopedPages = pages.some((page) => page.customDomain === host)
+      ? pages.filter((page) => page.customDomain === host)
+      : pages;
+
+    const entries = scopedPages.map((page) => {
+      const url = getPagePublicUrl(req, page);
+      return `  <url>\n    <loc>${escapeXml(url)}</loc>\n    <lastmod>${page.updatedAt.toISOString()}</lastmod>\n    <changefreq>weekly</changefreq>\n  </url>`;
+    });
+
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${entries.join('\n')}\n</urlset>`;
+    return reply.type('application/xml').send(xml);
+  });
 
   app.get('/favicon.ico', async (_req, reply) => reply.status(204).send());
 
