@@ -10,7 +10,7 @@ import { authRoutes } from './routes/auth.js';
 import { adminRoutes } from './routes/admin.js';
 import { publicRoutes } from './routes/public.js';
 
-const app = Fastify({ logger: { level: 'info' } });
+const app = Fastify({ logger: { level: 'info' }, trustProxy: true });
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 await app.register(cors, { origin: true });
